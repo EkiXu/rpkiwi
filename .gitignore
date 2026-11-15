@@ -1,0 +1,32 @@
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv
+.env
+log/
+
+# official source code for each validator
+vendor/*/src
+
+# put official alloy binaries here
+src/rpkiwi/alloy/thirdparty
+
+# Alloy Analyzer run output (receipts + counterexample dumps)
+src/rpkiwi/alloy/output/
+
+# laboratory / audit assets are not part of the public artifact
+/audit/
+/corpus/
+/ssl/
+/myta/
+/vendor/
+/slide/
+/HANDOFF.md
+/docker-compose.yml
+*.pdf

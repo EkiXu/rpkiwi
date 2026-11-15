@@ -1,0 +1,525 @@
+# field_registry.yaml — RFC-grounded field registry for rpkiwi Alloy model.
+#
+# Single source of truth mapping Alloy sig fields to mutator-compatible AST paths.
+# Every entry references the RFC section that defines the field's semantics.
+#
+# Conventions:
+#   id:         Sig.field (matches base.als declaration)
+#   rfc:        RFC and section reference
+#   alloy_type: Alloy type from the sig declaration
+#   find_path:  Mutator-compatible AST path used by both ASTNode.find() and
+#               match_energy(). This is the path as produced by
+#               _collect_nodes_with_paths (root label skipped, children down).
+#               - CMS objects (ROA/ASPA/MFT): starts with SignedData/...
+#               - CRL: starts with tbsCertList/...
+#               - null for infrastructure-only fields
+#   paths:     Optional per-object-type overrides for find_path.
+#   scope:      Which object types this path applies to.
+#               [ROA, ASPA, MFT] for CMS fields, [CRL] for CRL fields.
+#               Omitted when find_path is null.
+#   rrdp_energy: Per-RRDP-type energy paths for infrastructure fields
+#               that map to RRDP attack surface. Keys are RRDP object types.
+#   ni:         Whether malformed values can cause non-interference failures
+#   conf:       Whether this field participates in RFC-defined confinement verification
+#
+# NOTE: Stages are NOT annotated here — they are a property of per-field assertions
+# in {validator}.als, not of fields themselves.
+
+fields:
+
+  # ===========================================================================
+  # Certificate — X.509 EE certificate embedded in CMS SignedData
+  # ===========================================================================
+
+  - id: Certificate.issuer_ski
+    rfc: "RFC 6487 §4.8.3"
+    alloy_type: "one KeyId"
+    find_path: "SignedData/certificates/EECertificate/tbsCertificate/extensions/extSeq/aki"
+    paths:
+      CER: "tbsCertificate/extensions/extSeq/aki"
+      CRL: "tbsCertList/extensions/extSeq/aki"
+    scope: [ROA, ASPA, MFT, CER, CRL]
+    ni: false
+    conf: true
+
+  - id: Certificate.subject_ski
+    rfc: "RFC 6487 §4.8.2"
+    alloy_type: "one KeyId"
+    find_path: "SignedData/certificates/EECertificate/tbsCertificate/extensions/extSeq/ski"
+    paths:
+      CER: "tbsCertificate/extensions/extSeq/ski"
+    scope: [ROA, ASPA, MFT, CER]
+    ni: false
+    conf: true
+
+  - id: Certificate.ip_resources
+    rfc: "RFC 3779 §2, RFC 6487 §4.8.10"
+    alloy_type: "set Prefix"
+    find_path: "SignedData/certificates/EECertificate/tbsCertificate/extensions/extSeq/ipResources"
+    paths:
+      CER: "tbsCertificate/extensions/extSeq/ipResources"
+    scope: [ROA, ASPA, MFT, CER]
+    ni: false
+    conf: true
+
+  - id: Certificate.as_resources
+    rfc: "RFC 3779 §3, RFC 6487 §4.8.11"
+    alloy_type: "set ASN"
+    find_path: "SignedData/certificates/EECertificate/tbsCertificate/extensions/extSeq/asnResources"
+    paths:
+      CER: "tbsCertificate/extensions/extSeq/asnResources"
+    scope: [ROA, ASPA, MFT, CER]
+    ni: false
+    conf: true
+
+  - id: Certificate.time_field_parse
+    rfc: "RFC 5280 §4.1.2.5"
+    alloy_type: "one ParseOutcome"
+    find_path: "SignedData/certificates/EECertificate/tbsCertificate/validity/notBefore"
+    paths:
+      CER: "tbsCertificate/validity/notBefore"
+    scope: [ROA, ASPA, MFT, CER]
+    ni: true
+    conf: false
+
+  - id: Certificate.resources_inherit
+    rfc: "RFC 3779 §2.5, RFC 6487 §4.8.10"
+    alloy_type: "one Bool"
+    find_path: "SignedData/certificates/EECertificate/tbsCertificate/extensions/extSeq/ipResources"
+    paths:
+      CER: "tbsCertificate/extensions/extSeq/ipResources"
+    scope: [ROA, ASPA, MFT, CER]
+    ni: false
+    conf: true
+
+  - id: Certificate.validity_period_enforced
+    rfc: "RFC 6487 §4.4"
+    alloy_type: "one Bool"
+    find_path: "SignedData/certificates/EECertificate/tbsCertificate/validity/notBefore"
+    paths:
+      CER: "tbsCertificate/validity/notBefore"
+    scope: [ROA, ASPA, MFT, CER]
+    ni: false
+    conf: false  # D-class: affects correctness/availability, not Cross-PP validated output (E1)
+
+  - id: Certificate.issuer_name
+    rfc: "RFC 5280 §4.1.2.4, RFC 6487 §4.3"
+    alloy_type: "one Name"
+    find_path: "SignedData/certificates/EECertificate/tbsCertificate/issuer"
+    paths:
+      CER: "tbsCertificate/issuer"
+    scope: [ROA, ASPA, MFT, CER]
+    ni: false
+    conf: false  # D-class: subsumed by CRL signature verification (s4_conf); not wired (E5)
+
+  - id: Certificate.subject_name
+    rfc: "RFC 5280 §4.1.2.6, RFC 6487 §4.5"
+    alloy_type: "one Name"
+    find_path: "SignedData/certificates/EECertificate/tbsCertificate/subject"
+    paths:
+      CER: "tbsCertificate/subject"
+    scope: [ROA, ASPA, MFT, CER]
+    ni: false
+    conf: true
+
+  - id: Certificate.serial_number
+    rfc: "RFC 5280 §4.1.2.2, RFC 6487 §4.2"
+    alloy_type: "one SerialNumber"
+    find_path: "SignedData/certificates/EECertificate/tbsCertificate/serialNumber"
+    paths:
+      CER: "tbsCertificate/serialNumber"
+    scope: [ROA, ASPA, MFT, CER]
+    ni: false
+    conf: true
+
+  - id: Certificate.sia_notify_uri
+    rfc: "RFC 8182 §3.5.1, RFC 6487 §4.8.8"
+    alloy_type: "lone URI"
+    find_path: "tbsCertificate/extensions/extSeq/sia/extnValue/accessDescriptions/rpkiNotify/uri"
+    scope: [CER]
+    ni: false
+    conf: false
+
+  - id: Certificate.sia_repo_uri
+    rfc: "RFC 6487 §4.8.8, RFC 6481 §2.2"
+    alloy_type: "lone URI"
+    find_path: "tbsCertificate/extensions/extSeq/sia/extnValue/accessDescriptions/caRepository/uri"
+    scope: [CER]
+    ni: false
+    conf: false
+
+  - id: Certificate.sia_mft_uri
+    rfc: "RFC 6487 §4.8.8"
+    alloy_type: "lone URI"
+    find_path: "tbsCertificate/extensions/extSeq/sia/extnValue/accessDescriptions/rpkiManifest/uri"
+    scope: [CER]
+    ni: false
+    conf: false
+    # Covers both manifest discovery (S3) and scope checking (S5 NI).
+
+  - id: Certificate.is_ca
+    rfc: "RFC 5280 §4.2.1.9, RFC 6487 §4.8.1"
+    alloy_type: "one Bool"
+    find_path: "tbsCertificate/extensions/extSeq/basicConstraints"
+    scope: [CER]
+    ni: false
+    conf: true
+
+  - id: Certificate.pubkey_parse
+    rfc: "RFC 5280 §4.1.2.7, RFC 6487 §4.7"
+    alloy_type: "one ParseOutcome"
+    find_path: "SignedData/certificates/EECertificate/tbsCertificate/subjectPublicKeyInfo"
+    paths:
+      CER: "tbsCertificate/subjectPublicKeyInfo"
+    scope: [ROA, ASPA, MFT, CER]
+    ni: true
+    conf: false
+
+  # ===========================================================================
+  # CMSSignedData — CMS wrapper for signed RPKI objects
+  # ===========================================================================
+
+  - id: CMSSignedData.signer_infos
+    rfc: "RFC 5652 §5.1, RFC 6488 §2.1"
+    alloy_type: "set SignerInfo"
+    find_path: "SignedData/signerInfos"
+    scope: [ROA, ASPA, MFT]
+    ni: false
+    conf: true
+
+  - id: CMSSignedData.econtent_digest
+    rfc: "RFC 5652 §11.2, RFC 6488 §2.1.6.4.3"
+    alloy_type: "one Hash"
+    find_path: "SignedData/encapContentInfo/eContent"
+    scope: [ROA, ASPA, MFT]
+    ni: false
+    conf: true
+
+  - id: CMSSignedData.signed_attrs_digest
+    rfc: "RFC 5652 §5.4"
+    alloy_type: "one Hash"
+    find_path: "SignedData/signerInfos/SignerInfo/signedAttrs/messageDigest"
+    scope: [ROA, ASPA, MFT]
+    ni: false
+    conf: true
+
+  - id: CMSSignedData.signature_valid
+    rfc: "RFC 5652 §5.6"
+    alloy_type: "one Bool"
+    find_path: "SignedData/signerInfos/SignerInfo/signature"
+    paths:
+      CRL: "signatureValue"
+    scope: [ROA, ASPA, MFT, CRL]
+    ni: false
+    conf: true
+
+  - id: CMSSignedData.ee_certificate
+    rfc: "RFC 6488 §2.1.4, RFC 5652 §10.2.3"
+    alloy_type: "one Certificate"
+    find_path: "SignedData/certificates/EECertificate"
+    scope: [ROA, ASPA, MFT]
+    ni: false
+    conf: true
+
+  - id: CMSSignedData.sid_matches_ee
+    rfc: "RFC 6488 §2.1.6.2, RFC 5652 §5.3"
+    alloy_type: "one Bool"
+    find_path: "SignedData/signerInfos/SignerInfo/sid"
+    scope: [ROA, ASPA, MFT]
+    ni: false
+    conf: true
+
+  - id: CMSSignedData.econtent_type_matches
+    rfc: "RFC 6488 §2.1.3.1, RFC 5652 §5.2"
+    alloy_type: "one Bool"
+    find_path: "SignedData/encapContentInfo/eContentType"
+    scope: [ROA, ASPA, MFT]
+    ni: false
+    conf: true
+
+  # ===========================================================================
+  # ROAPayload — Route Origin Authorization eContent
+  # ===========================================================================
+
+  - id: ROAPayload.roa_prefixes
+    rfc: "RFC 6482 §3"
+    alloy_type: "set Prefix"
+    find_path: "SignedData/encapContentInfo/eContent/ipAddrBlocks"
+    scope: [ROA]
+    ni: false
+    conf: true
+
+  # ===========================================================================
+  # ASPAPayload — AS Provider Authorization eContent
+  # ===========================================================================
+
+  - id: ASPAPayload.customer_as
+    rfc: "draft-ietf-sidrops-aspa-profile §3"
+    alloy_type: "one ASN"
+    find_path: "SignedData/encapContentInfo/eContent/customerASID"
+    scope: [ASPA]
+    ni: false
+    conf: true
+
+  - id: ASPAPayload.provider_asns
+    rfc: "draft-ietf-sidrops-aspa-profile §3"
+    alloy_type: "set ASN"
+    find_path: "SignedData/encapContentInfo/eContent/providers"
+    scope: [ASPA]
+    ni: false
+    conf: false  # D-class: provider list is not a resource claim; Conf checks customer_as only (E1)
+
+  # ===========================================================================
+  # MFTEntry — Single manifest fileList entry (filename + hash)
+  # ===========================================================================
+
+  - id: MFTEntry.entry_uri
+    rfc: "RFC 6486 §4.2.1"
+    alloy_type: "one URI"
+    find_path: "SignedData/encapContentInfo/eContent/fileList/fileEntry/filename"
+    scope: [MFT]
+    ni: false
+    conf: true
+
+  - id: MFTEntry.entry_hash
+    rfc: "RFC 6486 §4.2.1"
+    alloy_type: "one Hash"
+    find_path: "SignedData/encapContentInfo/eContent/fileList/fileEntry/hash"
+    scope: [MFT]
+    ni: false
+    conf: true
+
+  # ===========================================================================
+  # MFTPayload — Manifest eContent payload
+  # ===========================================================================
+
+  - id: MFTPayload.file_list
+    rfc: "RFC 6486 §4.2.1"
+    alloy_type: "set MFTEntry"
+    find_path: "SignedData/encapContentInfo/eContent/fileList"
+    scope: [MFT]
+    ni: false
+    conf: true
+
+  - id: MFTPayload.mft_this_update_parse
+    rfc: "RFC 6486 §4.2.1"
+    alloy_type: "one ParseOutcome"
+    find_path: "SignedData/encapContentInfo/eContent/thisUpdate"
+    scope: [MFT]
+    ni: true
+    conf: false
+
+  - id: MFTPayload.mft_next_update_parse
+    rfc: "RFC 6486 §4.2.1"
+    alloy_type: "one ParseOutcome"
+    find_path: "SignedData/encapContentInfo/eContent/nextUpdate"
+    scope: [MFT]
+    ni: true
+    conf: false
+
+  # ===========================================================================
+  # CRLPayload — X.509 CRL (not CMS-wrapped)
+  # ===========================================================================
+
+  - id: CRLPayload.crl_this_update_parse
+    rfc: "RFC 5280 §5.1.2.4"
+    alloy_type: "one ParseOutcome"
+    find_path: "tbsCertList/thisUpdate"
+    scope: [CRL]
+    ni: true
+    conf: false
+
+  - id: CRLPayload.crl_next_update_parse
+    rfc: "RFC 5280 §5.1.2.5"
+    alloy_type: "one ParseOutcome"
+    find_path: "tbsCertList/nextUpdate"
+    scope: [CRL]
+    ni: true
+    conf: false
+
+  - id: CRLPayload.crl_revocation_date_parse
+    rfc: "RFC 5280 §5.1.2.6"
+    alloy_type: "one ParseOutcome"
+    find_path: "tbsCertList/revokedCertificates/revokedCertificate/revocationDate"
+    scope: [CRL]
+    ni: true
+    conf: false
+
+  - id: CRLPayload.revoked_serials
+    rfc: "RFC 5280 §5.1.2.6, RFC 6487 §5"
+    alloy_type: "set SerialNumber"
+    find_path: "tbsCertList/revokedCertificates/revokedCertificate/serialNumber"
+    scope: [CRL]
+    ni: false
+    conf: true
+
+  - id: CRLPayload.crl_issuer
+    rfc: "RFC 5280 §5.1.2.3"
+    alloy_type: "one Name"
+    find_path: "tbsCertList/issuer"
+    scope: [CRL]
+    ni: false
+    conf: true
+
+  # ===========================================================================
+  # RRDPNotification — RRDP notification document (XML)
+  # ===========================================================================
+
+  - id: RRDPNotification.session_id
+    rfc: "RFC 8182 §3.5.1"
+    alloy_type: "one RRDPSessionId"
+    find_path: "session_id"
+    scope: [NOTIFICATION, DELTA, SNAPSHOT]
+    ni: false
+    conf: false  # D-class: affects fetch freshness/caching, not validated output content (E3)
+
+  - id: RRDPNotification.rrdp_serial
+    rfc: "RFC 8182 §3.5.1"
+    alloy_type: "one RRDPSerial"
+    find_path: "serial"
+    scope: [NOTIFICATION, DELTA, SNAPSHOT]
+    ni: false
+    conf: false  # D-class: affects fetch freshness/caching, not validated output content (E3)
+
+  # ===========================================================================
+  # CA — Certificate Authority (infrastructure, no direct AST mapping)
+  # ===========================================================================
+
+  - id: CA.delegated_prefixes
+    rfc: "RFC 6480 §2.1"
+    alloy_type: "set Prefix"
+    find_path: null
+    ni: false
+    conf: true
+
+  - id: CA.delegated_asns
+    rfc: "RFC 6480 §2.1"
+    alloy_type: "set ASN"
+    find_path: null
+    ni: false
+    conf: true
+
+  - id: CA.ca_ski
+    rfc: "RFC 6487 §4.8.2"
+    alloy_type: "one KeyId"
+    find_path: null
+    ni: false
+    conf: true
+
+  # ===========================================================================
+  # PP — Publication Point (infrastructure fields with RRDP energy mapping)
+  # ===========================================================================
+
+  - id: PP.owner
+    rfc: "RFC 8183 §3"
+    alloy_type: "one CA"
+    find_path: null
+    ni: false
+    conf: false
+
+  - id: PP.notifyURI
+    rfc: "RFC 8182 §3.5.1"
+    alloy_type: "one URI"
+    find_path: null
+    rrdp_energy:
+      NOTIFICATION: ["snapshot_ref/uri", "snapshot_ref/hash", "session_id", "serial"]
+      DELTA: ["session_id", "serial"]
+    ni: false
+    conf: false
+
+  - id: PP.siaBase
+    rfc: "RFC 6481 §2.2"
+    alloy_type: "one URI"
+    find_path: null
+    rrdp_energy:
+      DELTA: ["publishes/PublishEntry/uri", "withdraws/WithdrawEntry/uri"]
+      SNAPSHOT: ["publishes/PublishEntry/uri"]
+    ni: false
+    conf: false
+
+  - id: PP.objects
+    rfc: "RFC 6481 §3"
+    alloy_type: "set RPKIObject"
+    find_path: null
+    ni: false
+    conf: false
+
+  - id: PP.rrdp_notification
+    rfc: "RFC 8182 §3.5.1"
+    alloy_type: "lone RRDPNotification"
+    find_path: null
+    ni: false
+    conf: false
+
+  # ===========================================================================
+  # RPKIObject — Published RPKI object
+  # ===========================================================================
+
+  - id: RPKIObject.origin
+    rfc: "RFC 6481 §3"
+    alloy_type: "one PP"
+    find_path: null
+    ni: false
+    conf: false
+
+  - id: RPKIObject.obj_type
+    rfc: "RFC 6488 §2"
+    alloy_type: "one ObjectType"
+    find_path: null
+    ni: false
+    conf: false
+
+  - id: RPKIObject.uri
+    rfc: "RFC 6481 §3"
+    alloy_type: "one URI"
+    find_path: null
+    rrdp_energy:
+      DELTA: ["withdraws/WithdrawEntry/uri", "withdraws/WithdrawEntry/hash", "publishes/PublishEntry/uri"]
+      SNAPSHOT: ["publishes/PublishEntry/uri"]
+    ni: false
+    conf: false
+
+  - id: RPKIObject.content_hash
+    rfc: "RFC 6486 §4.2.1"
+    alloy_type: "one Hash"
+    find_path: null
+    rrdp_energy:
+      DELTA: ["withdraws/WithdrawEntry/hash"]
+      SNAPSHOT: ["publishes/PublishEntry/uri"]
+    ni: false
+    conf: true
+
+  - id: RPKIObject.cms
+    rfc: "RFC 6488 §2"
+    alloy_type: "one CMSSignedData"
+    find_path: null
+    ni: false
+    conf: false
+
+  - id: RPKIObject.roa_payload
+    rfc: "RFC 6482 §3"
+    alloy_type: "lone ROAPayload"
+    find_path: null
+    ni: false
+    conf: false
+
+  - id: RPKIObject.aspa_payload
+    rfc: "draft-ietf-sidrops-aspa-profile §3"
+    alloy_type: "lone ASPAPayload"
+    find_path: null
+    ni: false
+    conf: false
+
+  - id: RPKIObject.mft_payload
+    rfc: "RFC 6486 §4"
+    alloy_type: "lone MFTPayload"
+    find_path: null
+    ni: false
+    conf: false
+
+  - id: RPKIObject.crl_payload
+    rfc: "RFC 5280 §5"
+    alloy_type: "lone CRLPayload"
+    find_path: null
+    ni: false
+    conf: false

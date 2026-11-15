@@ -1,0 +1,9 @@
+rpkiwi
+Copyright 2026 the rpkiwi authors
+
+This product includes the rpkiwi stateful fuzzing framework and the Alloy 6
+models described in "Rethinking Isolation in RPKI: Cross-Publication Origin
+Attacks on RPKI Validation".
+
+The upstream RPKI validator implementations are not included in this artifact;
+they are external dependencies and remain under their own licenses.
